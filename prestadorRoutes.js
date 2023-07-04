@@ -1,17 +1,24 @@
 const express = require("express");
 const Prestador = require("./models/Prestador");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 
 const router = express.Router();
 
+const generateSecretKey = () => {
+  const secretKeyLength = 32; // 256 bits
+  return crypto.randomBytes(secretKeyLength).toString("hex");
+};
+
 const verifyToken = (req, res, next) => {
-  const token = req.headers["authorization"];
+  const token = req.headers["authorization"].split(" ")[1];
 
   if (!token) {
     return res.status(401).json({ error: "Token não fornecido" });
   }
 
-  jwt.verify(token, "lucas123", (err, decoded) => {
+  jwt.verify(token, "trabalho_123_lucas_pablo", (err, decoded) => {
+    console.log(err);
     if (err) {
       return res.status(403).json({ error: "Erro ao autenticar o token" });
     }
@@ -20,10 +27,6 @@ const verifyToken = (req, res, next) => {
     next();
   });
 };
-
-router.get("/protected", verifyToken, (req, res) => {
-  res.json({ message: "You are authenticated!" });
-});
 
 router.post("/auth", async (req, res) => {
   try {
@@ -36,10 +39,14 @@ router.post("/auth", async (req, res) => {
     }
 
     // Gera o token
-    const secretKey = "Lucas3006";
-    const token = jwt.sign({ id: prestador._id }, secretKey, {
-      expiresIn: "1d",
-    });
+    const secretKey = "trabalho_123_lucas_pablo";
+    const token = jwt.sign(
+      { id: prestador._id, cpf: prestador.cpf_prestador },
+      secretKey,
+      {
+        expiresIn: "24h",
+      }
+    );
 
     res.json({ token });
   } catch (error) {
@@ -47,8 +54,12 @@ router.post("/auth", async (req, res) => {
   }
 });
 
+router.get("/protected", verifyToken, (req, res) => {
+  res.json({ message: "You are authenticated!" });
+});
+
 // Listar todos os prestadores de serviço
-router.get("/prestadores", verifyToken, async (req, res) => {
+router.get("/prestadores", async (req, res) => {
   try {
     const prestadores = await Prestador.find();
     res.json(prestadores);
@@ -60,7 +71,7 @@ router.get("/prestadores", verifyToken, async (req, res) => {
 });
 
 // Criar um novo prestador de serviço
-router.post("/prestadores", verifyToken, async (req, res) => {
+router.post("/prestadores", async (req, res) => {
   try {
     const {
       codigo_prestador,
